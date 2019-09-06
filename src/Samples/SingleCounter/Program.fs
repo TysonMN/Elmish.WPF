@@ -35,7 +35,7 @@ module BindingModule =
     "Increment" |> Binding.cmd MainModule.Increment
     "Decrement" |> Binding.cmd MainModule.Decrement
     "StepSize" |> Binding.twoWay(
-      (fun (m:MainModule.Model) -> float m.StepSize),
+      (fun m -> float m.StepSize),
       int >> MainModule.SetStepSize)
     "Reset" |> Binding.cmdIf(MainModule.Reset, (<>) (MainModule.init ()))
   ]
