@@ -4,6 +4,7 @@ open System
 open Elmish
 open Elmish.WPF
 
+[<AutoOpen>]
 module MainModule =
 
   type Model =
