@@ -4,7 +4,6 @@ open System
 open Elmish
 open Elmish.WPF
 
-[<AutoOpen>]
 module MainModule =
 
   type Model =
@@ -31,11 +30,17 @@ module MainModule =
 
 module BindingModule =
 
+  let notOverloadedTwoWay
+    (get: 'model -> 'a,
+     set: 'a -> 'msg)
+    : string -> Binding<'model, 'msg> =
+      Binding.twoWay(get, set)
+
   let bindings () : Binding<MainModule.Model, MainModule.Msg> list = [
     "CounterValue" |> Binding.oneWay (fun m -> m.Count)
     "Increment" |> Binding.cmd MainModule.Increment
     "Decrement" |> Binding.cmd MainModule.Decrement
-    "StepSize" |> Binding.twoWay(
+    "StepSize" |> notOverloadedTwoWay(
       (fun m -> float m.StepSize),
       int >> MainModule.SetStepSize)
     "Reset" |> Binding.cmdIf(MainModule.Reset, (<>) (MainModule.init ()))
