@@ -1,4 +1,4 @@
-﻿module Elmish.WPF.Samples.NewWindow.Program
+module Elmish.WPF.Samples.NewWindow.Program
 
 open System
 open System.Windows
@@ -88,7 +88,9 @@ module App =
       (fun () -> [
         "Input" |> Binding.twoWay((fun m -> m.Win1Input), Win1Input)
       ]),
-      Window1
+      (fun () ->
+        let window = Window1.Create() |> Async.AwaitTask |> Async.RunSynchronously
+        window)
     )
     "Win2" |> Binding.subModelWin(
       (fun m -> m.Win2 |> WindowState.ofOption), snd, id,
