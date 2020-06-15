@@ -1,0 +1,13 @@
+﻿<Window x:Class="ShowDialog.subModelSeq.Views.WaitWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ShowDialog.subModelSeq.Views"
+        mc:Ignorable="d"
+        Title="Structure Filters Loading..." Height="135.222" Width="395.444" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" ShowInTaskbar="False">
+    <Grid>
+        <TextBlock HorizontalAlignment="Center" TextWrapping="Wrap" Text="Loading...please wait" VerticalAlignment="Center" FontSize="24"/>
+
+    </Grid>
+</Window>

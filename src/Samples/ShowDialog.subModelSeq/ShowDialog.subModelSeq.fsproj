@@ -1,0 +1,57 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <TargetFramework>net461</TargetFramework>
+    <Platforms>AnyCPU</Platforms>
+    <WarningLevel>5</WarningLevel>
+    <Deterministic>false</Deterministic>
+    <OutputType>Exe</OutputType>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseWPF>true</UseWPF>
+    <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <Tailcalls>true</Tailcalls>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <Tailcalls>true</Tailcalls>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="Data\structs.h">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Domain.fs" />
+    <Compile Include="FieldData.fs" />
+    <Compile Include="Tree.fs" />
+    <Compile Include="Translation.fs" />
+    <Compile Include="StructFilters.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.Core" Version="4.6.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Elmish.WPF\Elmish.WPF.fsproj" />
+    <ProjectReference Include="..\ShowDialog.subModelSeq.Views\ShowDialog.subModelSeq.Views.csproj" />
+  </ItemGroup>
+
+  <ItemGroup />
+
+  <!--<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="xcopy &quot;$(ProjectDir)Data\structs.h&quot; &quot;$(OutputPath)\Data\&quot; /D /E /I /Y /F&#xD;&#xA;" />
+  </Target>-->
+
+</Project>
