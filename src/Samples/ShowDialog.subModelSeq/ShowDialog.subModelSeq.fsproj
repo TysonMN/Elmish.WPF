@@ -50,8 +50,4 @@
 
   <ItemGroup />
 
-  <!--<Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="xcopy &quot;$(ProjectDir)Data\structs.h&quot; &quot;$(OutputPath)\Data\&quot; /D /E /I /Y /F&#xD;&#xA;" />
-  </Target>-->
-
 </Project>
