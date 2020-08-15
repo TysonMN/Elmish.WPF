@@ -11,6 +11,12 @@ open Microsoft.Extensions.Logging
 open Elmish
 
 
+type private FSharpEqualityComparer<'a when 'a : equality> () =
+  interface IEqualityComparer<'a> with
+    member _.Equals (a1, a2) = a1 = a2
+    member _.GetHashCode a = hash a
+
+
 [<AutoOpen>]
 module internal ViewModelHelpers =
 
@@ -26,8 +32,8 @@ module internal ViewModelHelpers =
      * https://guide.elm-lang.org/optimization/keyed.html
      * https://github.com/elm/virtual-dom/blob/5a5bcf48720bc7d53461b3cd42a9f19f119c5503/src/Elm/Kernel/VirtualDom.js#L980-L1226
      *)
-    let removals = Dictionary<_, _> ()
-    let additions = Dictionary<_, _> ()
+    let removals = Dictionary<_, _> (FSharpEqualityComparer())
+    let additions = Dictionary<_, _> (FSharpEqualityComparer())
 
     let recordRemoval curTargetIdx curTarget curTargetId =
       removals.Add(curTargetId, (curTargetIdx, curTarget))
