@@ -30,9 +30,10 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="List.fs" />
+    <Compile Include="RoseTree.fs" />
     <Compile Include="Domain.fs" />
     <Compile Include="FieldData.fs" />
-    <Compile Include="Tree.fs" />
     <Compile Include="Translation.fs" />
     <Compile Include="StructFilters.fs" />
     <Compile Include="Program.fs" />
@@ -47,7 +48,5 @@
     <ProjectReference Include="..\..\Elmish.WPF\Elmish.WPF.fsproj" />
     <ProjectReference Include="..\ShowDialog.subModelSeq.Views\ShowDialog.subModelSeq.Views.csproj" />
   </ItemGroup>
-
-  <ItemGroup />
 
 </Project>

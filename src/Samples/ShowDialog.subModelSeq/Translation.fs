@@ -5,7 +5,7 @@ module Translation
 open System.IO
 open System.Text.RegularExpressions
 open Domain
-open Tree
+open RoseTree
 
 [<Struct>]
 type MsgHdrToken =
@@ -127,22 +127,22 @@ let loadStructDefsMemoized = memoize1 loadStructDefs
 let rec getFields structName structToks =
     let rec loop isInStruct acc lst =
         match lst with
-        | [] -> { acc with Fields = acc.Fields |> List.rev }
+        | [] -> { acc with Children = acc.Children |> List.rev }
         | StructOrUnionStart name :: t when name = structName -> 
             let fd = FieldData.create name name // for a parent struct, the name is the type
-            let fld = { Data = fd; Fields = [] }
+            let fld = { Data = fd; Children = [] }
             loop true fld t
         | StructOrUnionEnd :: t
         | BoolOperator :: t ->
             if isInStruct then
-                { acc with Fields = acc.Fields |> List.rev }
+                { acc with Children = acc.Children |> List.rev }
             else
                 loop isInStruct acc t
         | FieldPrimitive (typ, name) :: t ->
             if isInStruct then
                 let fd = FieldData.create name typ
-                let fld = { Data = fd; Fields = [] }
-                loop isInStruct { acc with Fields = fld :: acc.Fields } t
+                let fld = { Data = fd; Children = [] }
+                loop isInStruct { acc with Children = fld :: acc.Children } t
             else
                 loop isInStruct acc t
         | FieldStruct (typ, name) :: t ->
@@ -150,7 +150,7 @@ let rec getFields structName structToks =
                 let fd = FieldData.create name typ
                 let fldWithChildren = getFields typ structToks
                 let fld = { fldWithChildren with Data = fd }
-                loop isInStruct { acc with Fields = fld :: acc.Fields } t
+                loop isInStruct { acc with Children = fld :: acc.Children } t
             else
                 loop isInStruct acc t
         | _ :: t ->

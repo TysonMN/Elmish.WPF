@@ -18,17 +18,17 @@ type FieldData = { // Leaf data
     IsCmlEntity: bool
 }
 
-type Field =  { 
-    Data: FieldData
-    Fields: Field list
-}
-    with 
-        member this.IsEmpty = this.Data.Type = ""
+//type Field =  { 
+//    Data: FieldData
+//    Fields: Field list
+//}
+//    with 
+//        member this.IsEmpty = this.Data.Type = ""
 
 type Model = { 
     MsgType: MessageType
-    DummyRoot: Field
+    DummyRoot: RoseTree<FieldData>
 }
     with 
-        member this.ParentStruct = this.DummyRoot.Fields.Head
-        member this.IsEmpty = this.ParentStruct.IsEmpty
+        member this.ParentStruct = this.DummyRoot.Children.Head
+        member this.IsEmpty = this.ParentStruct.Data.Type = ""

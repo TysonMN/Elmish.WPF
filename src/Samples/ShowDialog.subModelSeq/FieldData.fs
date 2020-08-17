@@ -25,3 +25,8 @@ let setIsCmlChangeField isChecked fld = { fld with IsCmlChangeField = isChecked 
 let setIsCmlEntity isChecked fld = { fld with IsCmlEntity = isChecked }
 
 let isParentStruct fd = fd.Name = fd.Type
+
+let asDummyRoot c = { 
+  Data = empty // Placeholder data to satisfy type system. User never sees this.
+  Children = c 
+}
