@@ -2275,15 +2275,7 @@ type Binding private () =
        toMsg: 'id * 'subMsg -> 'msg,
        bindings: unit -> Binding<'model * 'subModel, 'subMsg> list)
       : string -> Binding<'model, 'msg> =
-    { GetModels = fun m ->
-        getSubModels m
-        |> Seq.map (fun sub -> (m, sub))
-      GetId = snd >> getId
-      GetBindings = bindings
-      ToMsg = fun _ -> toMsg }
-    |> SubModelSeqData.box
-    |> SubModelSeqData
-    |> createBinding
+    Binding.subModelSeq(getSubModels, id, snd >> getId, toMsg, bindings)
 
 
   /// <summary>
@@ -2301,15 +2293,7 @@ type Binding private () =
        getId: 'subModel -> 'id,
        bindings: unit -> Binding<'model * 'subModel, 'msg> list)
       : string -> Binding<'model, 'msg> =
-    { GetModels = fun m ->
-        getSubModels m
-        |> Seq.map (fun sub -> (m, sub))
-      GetId = snd >> getId
-      GetBindings = bindings
-      ToMsg = fun _ (_, msg) -> msg }
-    |> SubModelSeqData.box
-    |> SubModelSeqData
-    |> createBinding
+    Binding.subModelSeq(getSubModels, getId, snd, bindings)
 
 
   /// <summary>
