@@ -2221,34 +2221,24 @@ type Binding private () =
   /// <summary>
   ///   Creates a binding to a sequence of sub-models, each uniquely identified
   ///   by the value returned by <paramref name="getId" />. The sub-models have
-  ///   their own bindings and message type. You typically bind this to the
-  ///   <c>ItemsSource</c> of an <c>ItemsControl</c>, <c>ListView</c>,
-  ///   <c>TreeView</c>, etc.
+  ///   their own bindings. You typically bind this to the <c>ItemsSource</c> of
+  ///   an
+  ///   <c>ItemsControl</c>, <c>ListView</c>, <c>TreeView</c>, etc.
   /// </summary>
   /// <param name="getSubModels">Gets the sub-models from the model.</param>
-  /// <param name="toBindingModel">
-  ///   Converts the models to the model used by the bindings.
-  /// </param>
   /// <param name="getId">Gets a unique identifier for a sub-model.</param>
-  /// <param name="toMsg">
-  ///   Converts the sub-model ID and messages used in the bindings to parent
-  ///   model messages (e.g. a parent message union case that wraps the
-  ///   sub-model ID and message type).
-  /// </param>
   /// <param name="bindings">Returns the bindings for the sub-model.</param>
   static member subModelSeq
       (getSubModels: 'model -> #seq<'subModel>,
-       toBindingModel: 'model * 'subModel -> 'bindingModel,
-       getId: 'bindingModel -> 'id,
-       toMsg: 'id * 'bindingMsg -> 'msg,
-       bindings: unit -> Binding<'bindingModel, 'bindingMsg> list)
+       getId: 'subModel -> 'id,
+       bindings: unit -> Binding<'model * 'subModel, 'msg> list)
       : string -> Binding<'model, 'msg> =
     { GetModels = fun m ->
         getSubModels m
-        |> Seq.map (fun sub -> toBindingModel (m, sub))
-      GetId = getId
+        |> Seq.map (fun sub -> (m, sub))
+      GetId = snd >> getId
       GetBindings = bindings
-      ToMsg = fun _ -> toMsg }
+      ToMsg = fun _ (_, msg) -> msg }
     |> SubModelSeqData.box
     |> SubModelSeqData
     |> createBinding
@@ -2275,25 +2265,39 @@ type Binding private () =
        toMsg: 'id * 'subMsg -> 'msg,
        bindings: unit -> Binding<'model * 'subModel, 'subMsg> list)
       : string -> Binding<'model, 'msg> =
-    Binding.subModelSeq(getSubModels, id, snd >> getId, toMsg, bindings)
+    let bindings () = bindings () |> Bindings.mapMsgWithModel (fun (_, sub) msg -> toMsg (getId sub, msg))
+    Binding.subModelSeq(getSubModels, getId, bindings)
 
 
   /// <summary>
   ///   Creates a binding to a sequence of sub-models, each uniquely identified
   ///   by the value returned by <paramref name="getId" />. The sub-models have
-  ///   their own bindings. You typically bind this to the <c>ItemsSource</c> of
-  ///   an
-  ///   <c>ItemsControl</c>, <c>ListView</c>, <c>TreeView</c>, etc.
+  ///   their own bindings and message type. You typically bind this to the
+  ///   <c>ItemsSource</c> of an <c>ItemsControl</c>, <c>ListView</c>,
+  ///   <c>TreeView</c>, etc.
   /// </summary>
   /// <param name="getSubModels">Gets the sub-models from the model.</param>
+  /// <param name="toBindingModel">
+  ///   Converts the models to the model used by the bindings.
+  /// </param>
   /// <param name="getId">Gets a unique identifier for a sub-model.</param>
+  /// <param name="toMsg">
+  ///   Converts the sub-model ID and messages used in the bindings to parent
+  ///   model messages (e.g. a parent message union case that wraps the
+  ///   sub-model ID and message type).
+  /// </param>
   /// <param name="bindings">Returns the bindings for the sub-model.</param>
   static member subModelSeq
       (getSubModels: 'model -> #seq<'subModel>,
-       getId: 'subModel -> 'id,
-       bindings: unit -> Binding<'model * 'subModel, 'msg> list)
+       toBindingModel: 'model * 'subModel -> 'bindingModel,
+       getId: 'bindingModel -> 'id,
+       toMsg: 'id * 'bindingMsg -> 'msg,
+       bindings: unit -> Binding<'bindingModel, 'bindingMsg> list)
       : string -> Binding<'model, 'msg> =
-    Binding.subModelSeq(getSubModels, getId, snd, bindings)
+    let getSubModels m = m |> getSubModels |> Seq.map (fun s -> (m, s))
+    let getId = toBindingModel >> getId
+    let bindings () = bindings () |> Bindings.mapModel (snd >> toBindingModel)
+    Binding.subModelSeq(getSubModels, getId, toMsg, bindings)
 
 
   /// <summary>
