@@ -1611,13 +1611,7 @@ type Binding private () =
        toMsg: 'subMsg -> 'msg,
        bindings: unit -> Binding<'model * 'subModel, 'subMsg> list)
       : string -> Binding<'model, 'msg> =
-    { GetModel = fun m -> (m, getSubModel m) |> ValueSome
-      GetBindings = bindings
-      ToMsg = fun _ -> toMsg
-      Sticky = false }
-    |> SubModelData.box
-    |> SubModelData
-    |> createBinding
+    Binding.subModel(getSubModel, id, toMsg, bindings)
 
 
   /// <summary>
@@ -1631,13 +1625,7 @@ type Binding private () =
       (getSubModel: 'model -> 'subModel,
        bindings: unit -> Binding<'model * 'subModel, 'msg> list)
       : string -> Binding<'model, 'msg> =
-    { GetModel = fun m -> (m, getSubModel m) |> ValueSome
-      GetBindings = bindings
-      ToMsg = fun _ -> id
-      Sticky = false }
-    |> SubModelData.box
-    |> SubModelData
-    |> createBinding
+    Binding.subModel(getSubModel, id, bindings)
 
 
   /// <summary>
