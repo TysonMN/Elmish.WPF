@@ -3001,7 +3001,7 @@ module subModel =
       Property.check <| property {
         let! m = GenX.auto<int>
         let! x = GenX.auto<int>
-        let d = Binding.subModel(fail, fail) |> getSubModelData
+        let d = Binding.subModel(id, fail) |> getSubModelData
         test <@ d.ToMsg m (box x) = x @>
       }
 
@@ -3044,7 +3044,7 @@ module subModel =
         let! x = GenX.auto<int>
 
         let toMsg = string<int>
-        let d = Binding.subModel(fail, toMsg, fail) |> getSubModelData
+        let d = Binding.subModel(id, toMsg, fail) |> getSubModelData
 
         test <@ d.ToMsg m (box x) = toMsg x @>
       }
@@ -3088,7 +3088,7 @@ module subModel =
         let! x = GenX.auto<int>
 
         let toMsg = string<int>
-        let d = Binding.subModel(fail, fail, toMsg, fail) |> getSubModelData
+        let d = Binding.subModel(id, id, toMsg, fail) |> getSubModelData
 
         test <@ d.ToMsg m (box x) = toMsg x @>
       }

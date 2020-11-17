@@ -1566,6 +1566,56 @@ type Binding private () =
     |> createBinding
 
 
+  static member subModel
+      (bindings: unit -> Binding<'model, 'msg> list)
+      : string -> Binding<'model, 'msg> =
+    { GetModel = ValueSome
+      GetBindings = bindings
+      ToMsg = fun _ -> id
+      Sticky = false }
+    |> SubModelData.box
+    |> SubModelData
+    |> createBinding
+
+
+  /// <summary>
+  ///   Creates a binding to a sub-model/component that has its own bindings.
+  ///   You typically bind this to the <c>DataContext</c> of a
+  ///   <c>UserControl</c> or similar.
+  /// </summary>
+  /// <param name="getSubModel">Gets the sub-model from the model.</param>
+  /// <param name="bindings">Returns the bindings for the sub-model.</param>
+  static member subModel
+      (getSubModel: 'model -> 'subModel,
+       bindings: unit -> Binding<'model * 'subModel, 'msg> list)
+      : string -> Binding<'model, 'msg> =
+    bindings
+    |> Binding.subModel
+    >> Binding.mapModel (fun m -> (m, getSubModel m))
+
+
+  /// <summary>
+  ///   Creates a binding to a sub-model/component that has its own bindings and
+  ///   message type. You typically bind this to the <c>DataContext</c> of a
+  ///   <c>UserControl</c> or similar.
+  /// </summary>
+  /// <param name="getSubModel">Gets the sub-model from the model.</param>
+  /// <param name="toMsg">
+  ///   Converts the messages used in the bindings to parent model messages
+  ///   (e.g. a parent message union case that wraps the child message type).
+  /// </param>
+  /// <param name="bindings">Returns the bindings for the sub-model.</param>
+  static member subModel
+      (getSubModel: 'model -> 'subModel,
+       toMsg: 'subMsg -> 'msg,
+       bindings: unit -> Binding<'model * 'subModel, 'subMsg> list)
+      : string -> Binding<'model, 'msg> =
+    bindings
+    |> Binding.subModel
+    >> Binding.mapModel (fun m -> (m, getSubModel m))
+    >> Binding.mapMsg toMsg
+
+
   /// <summary>
   ///   Creates a binding to a sub-model/component that has its own bindings and
   ///   message type. You typically bind this to the <c>DataContext</c> of a
@@ -1586,58 +1636,10 @@ type Binding private () =
        toMsg: 'bindingMsg -> 'msg,
        bindings: unit -> Binding<'bindingModel, 'bindingMsg> list)
       : string -> Binding<'model, 'msg> =
-    { GetModel = fun m -> toBindingModel (m, getSubModel m) |> ValueSome
-      GetBindings = bindings
-      ToMsg = fun _ -> toMsg
-      Sticky = false }
-    |> SubModelData.box
-    |> SubModelData
-    |> createBinding
-
-
-  /// <summary>
-  ///   Creates a binding to a sub-model/component that has its own bindings and
-  ///   message type. You typically bind this to the <c>DataContext</c> of a
-  ///   <c>UserControl</c> or similar.
-  /// </summary>
-  /// <param name="getSubModel">Gets the sub-model from the model.</param>
-  /// <param name="toMsg">
-  ///   Converts the messages used in the bindings to parent model messages
-  ///   (e.g. a parent message union case that wraps the child message type).
-  /// </param>
-  /// <param name="bindings">Returns the bindings for the sub-model.</param>
-  static member subModel
-      (getSubModel: 'model -> 'subModel,
-       toMsg: 'subMsg -> 'msg,
-       bindings: unit -> Binding<'model * 'subModel, 'subMsg> list)
-      : string -> Binding<'model, 'msg> =
-    { GetModel = fun m -> (m, getSubModel m) |> ValueSome
-      GetBindings = bindings
-      ToMsg = fun _ -> toMsg
-      Sticky = false }
-    |> SubModelData.box
-    |> SubModelData
-    |> createBinding
-
-
-  /// <summary>
-  ///   Creates a binding to a sub-model/component that has its own bindings.
-  ///   You typically bind this to the <c>DataContext</c> of a
-  ///   <c>UserControl</c> or similar.
-  /// </summary>
-  /// <param name="getSubModel">Gets the sub-model from the model.</param>
-  /// <param name="bindings">Returns the bindings for the sub-model.</param>
-  static member subModel
-      (getSubModel: 'model -> 'subModel,
-       bindings: unit -> Binding<'model * 'subModel, 'msg> list)
-      : string -> Binding<'model, 'msg> =
-    { GetModel = fun m -> (m, getSubModel m) |> ValueSome
-      GetBindings = bindings
-      ToMsg = fun _ -> id
-      Sticky = false }
-    |> SubModelData.box
-    |> SubModelData
-    |> createBinding
+    bindings
+    |> Binding.subModel
+    >> Binding.mapModel (fun m -> (m, getSubModel m) |> toBindingModel)
+    >> Binding.mapMsg toMsg
 
 
   /// <summary>
