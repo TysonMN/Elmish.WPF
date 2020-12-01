@@ -1,297 +1,76 @@
 module Elmish.WPF.Samples.SubModelSeq.Program
 
-open System
-open Serilog
-open Serilog.Extensions.Logging
+open Elmish
 open Elmish.WPF
-
-
-module Option =
-
-  let set a = Option.map (fun _ -> a)
-
-
-module Func =
-
-  let flip f b a = f a b
-
-
-module FuncOption =
-
-  let inputIfNone f a = a |> f |> Option.defaultValue a
-  
-  let map (f: 'b -> 'c) (mb: 'a -> 'b option) =
-    mb >> Option.map f
-
-  let bind (f: 'b -> 'a -> 'c) (mb: 'a -> 'b option) a =
-    mb a |> Option.bind (fun b -> Some(f b a))
-
-
-let map get set f a =
-  a |> get |> f |> Func.flip set a
-
-
-module List =
-
-  let swap i j =
-    List.permute
-      (function
-        | a when a = i -> j
-        | a when a = j -> i
-        | a -> a)
-
-  let swapWithNext i = swap i (i + 1)
-  let swapWithPrev i = swap i (i - 1)
-
-  let cons head tail = head :: tail
-
-  let mapFirst p f input =
-    let rec mapFirstRec reverseFront back =
-      match back with
-      | [] -> input
-      | a :: ma ->
-          if p a then
-            (reverseFront |> List.rev) @ (f a :: ma)
-          else
-            mapFirstRec (a :: reverseFront) ma
-    mapFirstRec [] input
-
-        
-[<AutoOpen>]
-module Identifiable =
-
-  type Identifiable<'a> =
-    { Id: Guid
-      Value: 'a }
-  
-  module Identifiable =
-
-    let getId m = m.Id
-    let get m = m.Value
-    let set v m = { m with Value = v }
-    let map f = f |> map get set
-
-
-[<AutoOpen>]
-module Counter =
-
-  type Counter =
-    { Count: int
-      StepSize: int }
-
-  type CounterMsg =
-    | Increment
-    | Decrement
-    | SetStepSize of int
-    | Reset
-
-  module Counter =
-
-    let init =
-      { Count = 0
-        StepSize = 1 }
-    
-    let canReset = (<>) init
-    
-    let update msg m =
-      match msg with
-      | Increment -> { m with Count = m.Count + m.StepSize }
-      | Decrement -> { m with Count = m.Count - m.StepSize }
-      | SetStepSize x -> { m with StepSize = x }
-      | Reset -> init
-
-    let bindings () : Binding<Counter, CounterMsg> list = [
-      "CounterValue" |> Binding.oneWay (fun m -> m.Count)
-      "Increment" |> Binding.cmd Increment
-      "Decrement" |> Binding.cmd Decrement
-      "StepSize" |> Binding.twoWay(
-        (fun m -> float m.StepSize),
-        int >> SetStepSize)
-      "Reset" |> Binding.cmdIf(Reset, canReset)
-    ]
-
-
-[<AutoOpen>]
-module RoseTree =
-
-  type RoseTree<'model> =
-    { Data: 'model
-      Children: RoseTree<'model> list }
-
-  type RoseTreeMsg<'a, 'msg> =
-    | BranchMsg of 'a * RoseTreeMsg<'a, 'msg>
-    | LeafMsg of 'msg
-
-  module RoseTree =
-
-    let create data children =
-      { Data = data
-        Children = children }
-    let createLeaf a = create a []
-
-    let getData t = t.Data
-    let setData (d: 'a) (t: RoseTree<'a>) = { t with Data = d }
-    let mapData f = map getData setData f
-
-    let getChildren t = t.Children
-    let setChildren c t = { t with Children = c }
-    let mapChildren f = map getChildren setChildren f
-
-    let addSubtree t = t |> List.cons |> mapChildren
-    let addChildData a = a |> createLeaf |> addSubtree
-
-    let update p (f: 'msg -> RoseTree<'model> -> RoseTree<'model>) =
-      let rec updateRec = function
-        | BranchMsg (a, msg) -> msg |> updateRec |> List.mapFirst (p a) |> mapChildren
-        | LeafMsg msg -> msg |> f
-      updateRec
 
 
 module App =
 
-  type Model =
-    { SomeGlobalState: bool
-      DummyRoot: RoseTree<Identifiable<Counter>> }
+  type SomeRecord = {
+    Id: int
+    SomeField: string
+    AnotherField: float
+    FirstStepId: int}
 
-  type SubtreeMsg =
-    | CounterMsg of CounterMsg
-    | AddChild
-    | Remove of Guid
-    | MoveUp of Guid
-    | MoveDown of Guid
+  type Model = {
+    FirstStep: int list
+    SelectedFirstStep: int option
+    Entities: SomeRecord list
+    SelectedEntityId: int option
+  }
 
   type Msg =
-    | ToggleGlobalState
-    | SubtreeMsg of RoseTreeMsg<Guid, SubtreeMsg>
+    | SelectFirstStep of int option
+    | SelectEntityId of int option
+    | UpdateSomeField of string
 
-
-  let getSomeGlobalState m = m.SomeGlobalState
-  let setSomeGlobalState v m = { m with SomeGlobalState = v }
-  let mapSomeGlobalState f = f |> map getSomeGlobalState setSomeGlobalState
-
-  let getDummyRoot m = m.DummyRoot
-  let setDummyRoot v m = { m with DummyRoot = v }
-  let mapDummyRoot f = f |> map getDummyRoot setDummyRoot
-
-  let createNewIdentifiableCounter () =
-    { Id = Guid.NewGuid ()
-      Value = Counter.init }
-
-  let createNewLeaf () =
-    createNewIdentifiableCounter ()
-    |> RoseTree.createLeaf
+  let entities selectedFirstStep =
+    let baseEntity = {Id = 1; SomeField = "Some Field"; AnotherField = 5.0; FirstStepId = 1}
+    [baseEntity; {baseEntity with Id = 2}; {baseEntity with Id = 3; FirstStepId = 2}]
+    |> List.filter (fun x -> x.FirstStepId = selectedFirstStep)
 
   let init () =
-    let dummyRootData = createNewIdentifiableCounter () // Placeholder data to satisfy type system. User never sees this.
-    { SomeGlobalState = false
-      DummyRoot =
-        createNewLeaf ()
-        |> List.singleton
-        |> RoseTree.create dummyRootData } 
 
-  let hasId id t = t.Data.Id = id
+    {
+     FirstStep = [1;2;3;4;5;6]
+     SelectedFirstStep = Some 1
+     Entities = entities 1
+     SelectedEntityId = Some 1},
+     Cmd.none
 
-  let swapCounters swap nId =
-    nId
-    |> hasId
-    |> List.tryFindIndex
-    |> FuncOption.bind swap
-    |> FuncOption.inputIfNone
-
-  let updateSubtree = function
-    | CounterMsg msg -> msg |> Counter.update |> Identifiable.map |> RoseTree.mapData
-    | AddChild -> createNewLeaf () |> List.cons |> RoseTree.mapChildren
-    | Remove cId -> cId |> hasId >> not |> List.filter |> RoseTree.mapChildren
-    | MoveUp cId -> cId |> swapCounters List.swapWithPrev |> RoseTree.mapChildren
-    | MoveDown cId -> cId |> swapCounters List.swapWithNext |> RoseTree.mapChildren
-
-  let update = function
-    | ToggleGlobalState -> mapSomeGlobalState not
-    | SubtreeMsg msg -> msg |> RoseTree.update hasId updateSubtree |> mapDummyRoot
-
-
-module Bindings =
-
-  open App
-
-  type SelfWithParent<'a> =
-    { Self: 'a
-      Parent: 'a }
-
-  let moveUpMsg (_, { Parent = p; Self = s }) =
-    match p.Children |> List.tryHead with
-    | Some c when c.Data.Id <> s.Data.Id ->
-        s.Data.Id |> MoveUp |> Some
-    | _ -> None
-
-  let moveDownMsg (_, { Parent = p; Self = s }) =
-    match p.Children |> List.tryLast with
-    | Some c when c.Data.Id <> s.Data.Id ->
-        s.Data.Id |> MoveDown |> Some
-    | _ -> None
-    
-  let adjustMsgToParent msg =
+  let update msg m =
     match msg with
-    | BranchMsg (pId, LeafMsg (Remove   cId)) when pId = cId -> LeafMsg (Remove cId)
-    | BranchMsg (pId, LeafMsg (MoveUp   cId)) when pId = cId -> LeafMsg (MoveUp cId)
-    | BranchMsg (pId, LeafMsg (MoveDown cId)) when pId = cId -> LeafMsg (MoveDown cId)
-    | _ -> msg
 
-  let rec subtreeBindings () : Binding<Model * SelfWithParent<RoseTree<Identifiable<Counter>>>, RoseTreeMsg<Guid, SubtreeMsg>> list =
-    let counterBindings =
-      Counter.bindings ()
-      |> Bindings.mapModel (fun (_, { Self = s }) -> s.Data.Value)
-      |> Bindings.mapMsg (CounterMsg >> LeafMsg)
-    let newBindings =
-      [
-        "CounterIdText" |> Binding.oneWay(fun (_, { Self = s }) -> s.Data.Id)
-      
-        "Remove" |> Binding.cmd(fun (_, { Self = s }) -> s.Data.Id |> Remove |> LeafMsg)
-      
-        "AddChild" |> Binding.cmd(AddChild |> LeafMsg)
-      
-        "MoveUp" |> Binding.cmdIf(moveUpMsg |> FuncOption.map LeafMsg)
-        "MoveDown" |> Binding.cmdIf(moveDownMsg |> FuncOption.map LeafMsg)
-      
-        "GlobalState" |> Binding.oneWay(fun (m, _) -> m.SomeGlobalState)
-      
-        "ChildCounters" |> Binding.subModelSeq(
-          (fun (_, { Self = p }) -> p.Children |> Seq.map (fun c -> { Self = c; Parent = p })),
-          (fun ((m, _), selfAndParent) -> (m, selfAndParent)),
-          (fun (_, { Self = c }) -> c.Data.Id),
-          BranchMsg >> adjustMsgToParent,
-          subtreeBindings)
-      ]
-    [ counterBindings
-      newBindings ]
-    |> List.concat
+    | SelectFirstStep x ->
+      {m with SelectedFirstStep = x; Entities = entities (x |> Option.defaultValue 1)}, Cmd.none
 
+    | SelectEntityId x ->
+      {m with SelectedEntityId = x}, Cmd.none
+    | UpdateSomeField x ->
+      let newList =
+        m.Entities
+        |> List.map (fun entity -> if entity.Id = (m.SelectedEntityId |> Option.defaultValue 1) then {entity with SomeField = x} else entity)
+      {m with Entities = newList}, Cmd.none
 
-  let rootBindings () : Binding<Model, Msg> list = [
-    "Counters" |> Binding.subModelSeq(
-      (fun m -> m.DummyRoot.Children |> Seq.map (fun c -> { Self = c; Parent = m.DummyRoot })),
-      (fun { Self = c } -> c.Data.Id),
-      BranchMsg >> adjustMsgToParent >> SubtreeMsg,
-      subtreeBindings)
+  let bindings () : Binding<Model, Msg> list =
+    [
+      "FirstStep"
+      |> Binding.oneWaySeq ((fun m -> m.FirstStep), (=), id)
+      "SelectedFirstStep"
+      |> Binding.twoWayOpt ((fun m -> m.SelectedFirstStep), (fun x -> SelectFirstStep x))
 
-    "ToggleGlobalState" |> Binding.cmd ToggleGlobalState
-
-    "AddCounter" |> Binding.cmd (AddChild |> LeafMsg |> SubtreeMsg)
-  ]
-
-let counterDesignVm = ViewModel.designInstance Counter.init (Counter.bindings ())
-let mainDesignVm = ViewModel.designInstance (App.init ()) (Bindings.rootBindings ())
+      "Entities"
+      |> Binding.subModelSeq
+        ((fun m -> m.Entities),
+        (fun e -> e.Id),
+        (fun () ->
+          ["SomeField" |> Binding.twoWay ((fun(_,e) -> e.SomeField), (fun newVal _ -> UpdateSomeField newVal))]))
+      "SelectedEntityId"
+      |> Binding.subModelSelectedItem ("Entities", (fun m -> m.SelectedEntityId), SelectEntityId)]
 
 let main window =
 
-  let logger =
-    LoggerConfiguration()
-      .MinimumLevel.Override("Elmish.WPF.Update", Events.LogEventLevel.Verbose)
-      .MinimumLevel.Override("Elmish.WPF.Bindings", Events.LogEventLevel.Verbose)
-      .MinimumLevel.Override("Elmish.WPF.Performance", Events.LogEventLevel.Verbose)
-      .WriteTo.Console()
-      .CreateLogger()
+  let bindings = App.bindings
 
-  WpfProgram.mkSimple App.init App.update Bindings.rootBindings
-  |> WpfProgram.withLogger (new SerilogLoggerFactory(logger))
+  Elmish.WPF.WpfProgram.mkProgram App.init App.update bindings
   |> WpfProgram.runWindow window
