@@ -22,28 +22,25 @@ module App =
     | SelectEntityId of int option
     | UpdateSomeField of string
 
-  let entities selectedFirstStep =
-    let baseEntity =
-      { Id = 1
-        SomeField = "Some Field"
-        AnotherField = 5.0
-        FirstStepId = 1 }
-    [ baseEntity
-      { baseEntity with Id = 2 }
-      { baseEntity with Id = 3; FirstStepId = 2 } ]
-    |> List.filter (fun x -> x.FirstStepId = selectedFirstStep)
-
   let init () =
+    let entities =
+      let baseEntity =
+        { Id = 1
+          SomeField = "Some Field"
+          AnotherField = 5.0
+          FirstStepId = 1 }
+      [ baseEntity
+        { baseEntity with Id = 2 }
+        { baseEntity with Id = 3; FirstStepId = 2 } ]
     { FirstStep = [ 1; 2; 3; 4; 5; 6 ]
       SelectedFirstStep = Some 1
-      Entities = entities 1
+      Entities = entities
       SelectedEntityId = Some 1 }
 
   let update msg m =
     match msg with
     | SelectFirstStep x ->
-      { m with SelectedFirstStep = x
-               Entities = entities (x |> Option.defaultValue 1)}
+      { m with SelectedFirstStep = x }
     | SelectEntityId x ->
       { m with SelectedEntityId = x }
     | UpdateSomeField x ->
@@ -59,7 +56,7 @@ module App =
       "SelectedFirstStep" |> Binding.twoWayOpt ((fun m -> m.SelectedFirstStep), SelectFirstStep)
 
       "Entities" |> Binding.subModelSeq
-        ((fun m -> m.Entities),
+        ((fun m -> m.Entities |> List.filter (fun e -> Some e.FirstStepId = m.SelectedFirstStep)),
         (fun e -> e.Id),
         (fun () ->
           ["SomeField" |> Binding.twoWay ((fun (_, e) -> e.SomeField), (fun newVal _ -> UpdateSomeField newVal))]))
