@@ -1566,6 +1566,18 @@ type Binding private () =
     |> createBinding
 
 
+  static member subModel
+      (bindings: unit -> Binding<'model, 'msg> list)
+      : string -> Binding<'model, 'msg> =
+    { GetModel = ValueSome
+      GetBindings = bindings
+      ToMsg = fun _ -> id
+      Sticky = false }
+    |> SubModelData.box
+    |> SubModelData
+    |> createBinding
+
+
   /// <summary>
   ///   Creates a binding to a sub-model/component that has its own bindings.
   ///   You typically bind this to the <c>DataContext</c> of a
@@ -1577,13 +1589,9 @@ type Binding private () =
       (getSubModel: 'model -> 'subModel,
        bindings: unit -> Binding<'model * 'subModel, 'msg> list)
       : string -> Binding<'model, 'msg> =
-    { GetModel = fun m -> (m, getSubModel m) |> ValueSome
-      GetBindings = bindings
-      ToMsg = fun _ -> id
-      Sticky = false }
-    |> SubModelData.box
-    |> SubModelData
-    |> createBinding
+    bindings
+    |> Binding.subModel
+    >> Binding.mapModel (fun m -> (m, getSubModel m))
 
 
   /// <summary>
@@ -1602,8 +1610,10 @@ type Binding private () =
        toMsg: 'subMsg -> 'msg,
        bindings: unit -> Binding<'model * 'subModel, 'subMsg> list)
       : string -> Binding<'model, 'msg> =
-    let bindings () = bindings () |> Bindings.mapMsg toMsg
-    Binding.subModel(getSubModel, bindings)
+    bindings
+    |> Binding.subModel
+    >> Binding.mapModel (fun m -> (m, getSubModel m))
+    >> Binding.mapMsg toMsg
 
 
   /// <summary>
@@ -1626,11 +1636,10 @@ type Binding private () =
        toMsg: 'bindingMsg -> 'msg,
        bindings: unit -> Binding<'bindingModel, 'bindingMsg> list)
       : string -> Binding<'model, 'msg> =
-    let bindings () =
-      bindings ()
-      |> Bindings.mapMsg toMsg
-      |> Bindings.mapModel toBindingModel
-    Binding.subModel(getSubModel, bindings)
+    bindings
+    |> Binding.subModel
+    >> Binding.mapModel (fun m -> (m, getSubModel m) |> toBindingModel)
+    >> Binding.mapMsg toMsg
 
 
   /// <summary>
