@@ -1590,8 +1590,8 @@ type Binding private () =
        bindings: unit -> Binding<'model * 'subModel, 'msg> list)
       : string -> Binding<'model, 'msg> =
     bindings
+    >> Bindings.mapModel (fun m -> (m, getSubModel m))
     |> Binding.subModel
-    >> Binding.mapModel (fun m -> (m, getSubModel m))
 
 
   /// <summary>
@@ -1611,9 +1611,9 @@ type Binding private () =
        bindings: unit -> Binding<'model * 'subModel, 'subMsg> list)
       : string -> Binding<'model, 'msg> =
     bindings
+    >> Bindings.mapModel (fun m -> (m, getSubModel m))
+    >> Bindings.mapMsg toMsg
     |> Binding.subModel
-    >> Binding.mapModel (fun m -> (m, getSubModel m))
-    >> Binding.mapMsg toMsg
 
 
   /// <summary>
@@ -1637,9 +1637,9 @@ type Binding private () =
        bindings: unit -> Binding<'bindingModel, 'bindingMsg> list)
       : string -> Binding<'model, 'msg> =
     bindings
+    >> Bindings.mapModel (fun m -> (m, getSubModel m) |> toBindingModel)
+    >> Bindings.mapMsg toMsg
     |> Binding.subModel
-    >> Binding.mapModel (fun m -> (m, getSubModel m) |> toBindingModel)
-    >> Binding.mapMsg toMsg
 
 
   /// <summary>
