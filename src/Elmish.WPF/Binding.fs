@@ -293,7 +293,10 @@ type internal CmdParamData<'model, 'msg> = {
   AutoRequery: bool
 }
 
-type internal SubModelSelectedItemData<'model, 'msg, 'id when 'id : equality> =
+type internal ValueOptionData<'model, 'msg> =
+  { BindingData: BindingData<'model, 'msg> }
+
+and internal SubModelSelectedItemData<'model, 'msg, 'id when 'id : equality> =
   { Get: 'model -> 'id voption
     Set: 'id voption -> 'model -> 'msg
     SubModelSeqBindingName: string }
@@ -1638,7 +1641,25 @@ type Binding private () =
       : string -> Binding<'model, 'msg> =
     bindings
     |> Binding.subModel
-    >> Binding.mapModel (fun m -> (m, getSubModel m) |> toBindingModel)
+    >> Binding.mapModel toBindingModel
+    >> Binding.mapModel (fun m -> (m, m |> getSubModel))
+    >> Binding.mapMsg toMsg
+
+  static member subModelOpt2
+      (getSubModel: 'model -> 'subModel voption,
+       toBindingModel: 'model * 'subModel -> 'bindingModel,
+       toMsg: 'bindingMsg -> 'msg,
+       bindings: unit -> Binding<'bindingModel, 'bindingMsg> list,
+       ?sticky: bool)
+      : string -> Binding<'model, 'msg> =
+    bindings
+    |> Binding.subModel
+    >> Binding.mapModel toBindingModel
+    >> Binding.mapModel (fun m -> (m, m |> getSubModel |> ValueOption.toObj))
+    >> (if defaultArg sticky false then
+          Binding.sticky (getSubModel >> ValueOption.isSome)
+        else
+          id)
     >> Binding.mapMsg toMsg
 
 
