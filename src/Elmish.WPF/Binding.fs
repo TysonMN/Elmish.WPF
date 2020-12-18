@@ -328,6 +328,12 @@ and internal SubModelData<'model, 'msg, 'bindingModel, 'bindingMsg> = {
   Sticky: bool
 }
 
+and internal OptionalValueData<'model, 'msg, 'bindingModel, 'bindingMsg> = {
+  GetModel: 'model -> 'bindingModel voption
+  ToMsg: 'model -> 'bindingMsg -> 'msg
+  GetBinding: unit -> Binding<'bindingModel, 'bindingMsg>
+}
+
 and internal SubModelWinData<'model, 'msg, 'bindingModel, 'bindingMsg> = {
   GetState: 'model -> WindowState<'bindingModel>
   GetBindings: unit -> Binding<'bindingModel, 'bindingMsg> list
@@ -365,6 +371,7 @@ and internal BindingData<'model, 'msg> =
   | CmdData of CmdData<'model, 'msg>
   | CmdParamData of CmdParamData<'model, 'msg>
   | SubModelData of SubModelData<'model, 'msg, obj, obj>
+  | OptionalValueData of OptionalValueData<'model, 'msg, obj, obj>
   | SubModelWinData of SubModelWinData<'model, 'msg, obj, obj>
   | SubModelSeqData of SubModelSeqData<'model, 'msg, obj, obj, obj>
   | SubModelSelectedItemData of SubModelSelectedItemData<'model, 'msg, obj>
@@ -428,6 +435,11 @@ module internal BindingData =
           ToMsg = f >> d.ToMsg
           Sticky = d.Sticky
         } |> SubModelData
+    | OptionalValueData d ->
+        { GetModel = f >> d.GetModel
+          ToMsg = f >> d.ToMsg
+          GetBinding = d.GetBinding
+        } |> OptionalValueData
     | SubModelWinData d ->
         { GetState = f >> d.GetState
           GetBindings = d.GetBindings
@@ -448,7 +460,7 @@ module internal BindingData =
           SubModelSeqBindingName = d.SubModelSeqBindingName
         } |> SubModelSelectedItemData
 
-  let mapMsgWithModel f = function
+  let rec mapMsgWithModel f = function
     | OneWayData d -> d |> OneWayData
     | OneWayLazyData d -> d |> OneWayLazyData
     | OneWaySeqLazyData d -> d |> OneWaySeqLazyData
@@ -475,6 +487,11 @@ module internal BindingData =
         GetBindings = d.GetBindings
         ToMsg = fun m x -> (m, x) ||> d.ToMsg |> f m
         Sticky = d.Sticky
+      }
+    | OptionalValueData d -> OptionalValueData {
+        GetModel = d.GetModel
+        ToMsg = fun m x -> (m, x) ||> d.ToMsg |> f m
+        GetBinding = d.GetBinding
       }
     | SubModelWinData d -> SubModelWinData {
         GetState = d.GetState
@@ -805,6 +822,40 @@ module internal BindingData2 =
       mapFunctions
         (mGetModel "getSubModel") // sic: "getModel" would be following the pattern
         (mGetBindings "bindings") // sic: "getBindings" would be following the pattern
+        (mToMsg "toMsg")
+
+
+  module OptionalValueData =
+  
+    let mapMinorTypes
+        (outMapBindingModel: 'bindingModel -> 'bindingModel0)
+        (outMapBindingMsg: 'bindingMsg -> 'bindingMsg0)
+        (inMapBindingModel: 'bindingModel0 -> 'bindingModel)
+        (inMapBindingMsg: 'bindingMsg0 -> 'bindingMsg)
+        (d: OptionalValueData<'model, 'msg, 'bindingModel, 'bindingMsg>) = {
+      GetModel = d.GetModel >> ValueOption.map outMapBindingModel
+      GetBinding = d.GetBinding >> Binding.mapModel inMapBindingModel >> Binding.mapMsg outMapBindingMsg
+      ToMsg = fun m bMsg -> d.ToMsg m (inMapBindingMsg bMsg)
+    }
+
+    let box d = mapMinorTypes box box unbox unbox d
+
+    let mapFunctions
+        mGetModel
+        mGetBinding
+        mToMsg
+        (d: OptionalValueData<'model, 'msg, 'bindingModel, 'bindingMsg>) =
+      { d with GetModel = mGetModel d.GetModel
+               ToMsg = mToMsg d.ToMsg
+               GetBinding = mGetBinding d.GetBinding }
+
+    let measureFunctions
+        mGetModel
+        mGetBinding
+        mToMsg =
+      mapFunctions
+        (mGetModel "getBindingModel")
+        (mGetBinding "getBinding")
         (mToMsg "toMsg")
 
 
@@ -1907,6 +1958,21 @@ type Binding private () =
     |> SubModelData.box
     |> SubModelData
     |> createBinding
+
+
+
+  static member optionalValue
+      (getBindingModel: 'model -> 'bindingModel voption,
+       binding: unit -> Binding<'bindingModel, 'msg>)
+      : string -> Binding<'model, 'msg> =
+    { GetModel = getBindingModel
+      ToMsg = fun _ -> id
+      GetBinding = binding }
+    |> OptionalValueData.box
+    |> OptionalValueData
+    |> createBinding
+
+
 
   /// <summary>
   ///   Like <see cref="subModelOpt" />, but uses the <c>WindowState</c> wrapper

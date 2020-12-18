@@ -42,6 +42,11 @@ type internal SubModelBinding<'model, 'msg, 'bindingModel, 'bindingMsg> = {
   Vm: ViewModel<'bindingModel, 'bindingMsg> voption ref
 }
 
+and internal OptionalValueBinding<'model, 'msg, 'bindingModel, 'bindingMsg> = {
+  OptionalValueData: OptionalValueData<'model, 'msg, 'bindingModel, 'bindingMsg>
+  Binding: VmBinding<'model, 'msg>
+}
+
 and internal SubModelWinBinding<'model, 'msg, 'bindingModel, 'bindingMsg> = {
   SubModelWinData: SubModelWinData<'model, 'msg, 'bindingModel, 'bindingMsg>
   WinRef: WeakReference<Window>
@@ -75,6 +80,7 @@ and internal VmBinding<'model, 'msg> =
   | Cmd of CmdBinding<'model, 'msg>
   | CmdParam of cmd: Command
   | SubModel of SubModelBinding<'model, 'msg, obj, obj>
+  | OptionalValue of OptionalValueBinding<'model, 'msg, obj, obj>
   | SubModelWin of SubModelWinBinding<'model, 'msg, obj, obj>
   | SubModelSeq of SubModelSeqBinding<'model, 'msg, obj, obj, obj>
   | SubModelSelectedItem of SubModelSelectedItemBinding<'model, 'msg, obj, obj, obj>
@@ -143,6 +149,7 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
     | Cmd _
     | CmdParam _
     | SubModel _
+    | OptionalValue _
     | SubModelWin _
     | SubModelSeq _
     | SubModelSelectedItem _ -> ignore2
@@ -191,7 +198,7 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
       } |> Async.StartImmediate
     )
 
-  let initializeBinding name bindingData getInitializedBindingByName =
+  let rec initializeBinding name bindingData getInitializedBindingByName =
     let measure x = x |> measure name
     let measure2 x = x |> measure2 name
     match bindingData with
@@ -237,6 +244,13 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
         |> (fun vm -> { SubModelData = d; Vm = ref vm })
         |> SubModel
         |> Some
+    | OptionalValueData d ->
+        let d = d |> OptionalValueData.measureFunctions measure measure measure2
+        initializeBinding name (d.GetBinding ()) getInitializedBindingByName
+        |> Option.map (fun b ->
+          { OptionalValueData = d
+            Binding = b }
+          |> OptionalValue)
     | SubModelWinData d ->
         let d = d |> SubModelWinData.measureFunctions measure measure measure2
         let toMsg = fun msg -> d.ToMsg currentModel msg
@@ -336,6 +350,17 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
           else
             b.Vm := ValueNone
             true
+      | ValueNone, ValueSome m ->
+          let toMsg = fun msg -> d.ToMsg currentModel msg
+          b.Vm := ValueSome <| ViewModel(m, toMsg >> dispatch, d.GetBindings (), performanceLogThresholdMs, getPropChainFor bindingName, log, logPerformance)
+          true
+      | ValueSome vm, ValueSome m ->
+          vm.UpdateModel m
+          false
+    | OptionalValue b ->
+      let d = b.OptionalValueData
+      match d.GetModel newModel with
+      | ValueNone, ValueNone -> false
       | ValueNone, ValueSome m ->
           let toMsg = fun msg -> d.ToMsg currentModel msg
           b.Vm := ValueSome <| ViewModel(m, toMsg >> dispatch, d.GetBindings (), performanceLogThresholdMs, getPropChainFor bindingName, log, logPerformance)
