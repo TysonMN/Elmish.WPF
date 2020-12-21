@@ -498,6 +498,10 @@ module internal BindingData =
 
 module Binding =
 
+  let internal create data name =
+    { Name = name
+      Data = data }
+
   let internal mapData f binding =
     { Name = binding.Name
       Data = binding.Data |> f }
@@ -901,16 +905,6 @@ module internal BindingData2 =
 
 
 
-
-[<AutoOpen>]
-module internal Helpers =
-
-  let createBinding data name =
-    { Name = name
-      Data = data }
-
-
-
 [<AbstractClass; Sealed>]
 type Binding private () =
 
@@ -923,7 +917,7 @@ type Binding private () =
     { Get = get }
     |> OneWayData.box
     |> OneWayData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -939,7 +933,7 @@ type Binding private () =
     { Get = get }
     |> OneWayData.boxOpt
     |> OneWayData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -955,7 +949,7 @@ type Binding private () =
     { Get = get }
     |> OneWayData.boxVOpt
     |> OneWayData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -982,7 +976,7 @@ type Binding private () =
       Equals = equals }
     |> OneWayLazyData.box
     |> OneWayLazyData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1013,7 +1007,7 @@ type Binding private () =
       Equals = equals }
     |> OneWayLazyData.boxOpt
     |> OneWayLazyData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1044,7 +1038,7 @@ type Binding private () =
       Equals = equals }
     |> OneWayLazyData.boxVOpt
     |> OneWayLazyData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1083,7 +1077,7 @@ type Binding private () =
       ItemEquals = itemEquals }
     |> OneWaySeqLazyData.box
     |> OneWaySeqLazyData
-    |> createBinding
+    |> Binding.create
 
     
   /// <summary>
@@ -1124,7 +1118,7 @@ type Binding private () =
       Set = set }
     |> TwoWayData.box
     |> TwoWayData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1142,7 +1136,7 @@ type Binding private () =
       Set = set }
     |> TwoWayData.boxOpt
     |> TwoWayData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1160,7 +1154,7 @@ type Binding private () =
       Set = set }
     |> TwoWayData.boxVOpt
     |> TwoWayData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1182,7 +1176,7 @@ type Binding private () =
       Validate = validate }
     |> TwoWayValidateData.box
     |> TwoWayValidateData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1204,7 +1198,7 @@ type Binding private () =
       Validate = validate >> ValueOption.ofOption }
     |> TwoWayValidateData.box
     |> TwoWayValidateData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1226,7 +1220,7 @@ type Binding private () =
       Validate = validate >> ValueOption.ofError }
     |> TwoWayValidateData.box
     |> TwoWayValidateData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1250,7 +1244,7 @@ type Binding private () =
       Validate = validate }
     |> TwoWayValidateData.boxVOpt
     |> TwoWayValidateData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1274,7 +1268,7 @@ type Binding private () =
       Validate = validate >> ValueOption.ofOption }
     |> TwoWayValidateData.boxVOpt
     |> TwoWayValidateData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1298,7 +1292,7 @@ type Binding private () =
       Validate = validate >> ValueOption.ofError }
     |> TwoWayValidateData.boxVOpt
     |> TwoWayValidateData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1322,7 +1316,7 @@ type Binding private () =
       Validate = validate }
     |> TwoWayValidateData.boxOpt
     |> TwoWayValidateData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1346,7 +1340,7 @@ type Binding private () =
       Validate = validate >> ValueOption.ofOption }
     |> TwoWayValidateData.boxOpt
     |> TwoWayValidateData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1370,7 +1364,7 @@ type Binding private () =
       Validate = validate >> ValueOption.ofError }
     |> TwoWayValidateData.boxOpt
     |> TwoWayValidateData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1384,7 +1378,7 @@ type Binding private () =
     { Exec = exec >> ValueSome
       CanExec = fun _ -> true }
     |> CmdData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1402,7 +1396,7 @@ type Binding private () =
     { Exec = exec >> ValueSome
       CanExec = canExec }
     |> CmdData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1418,7 +1412,7 @@ type Binding private () =
     { Exec = exec
       CanExec = exec >> ValueOption.isSome }
     |> CmdData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1434,7 +1428,7 @@ type Binding private () =
     { Exec = exec >> ValueOption.ofOption
       CanExec = exec >> Option.isSome }
     |> CmdData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1453,7 +1447,7 @@ type Binding private () =
     { Exec = exec >> ValueOption.ofOk
       CanExec = exec >> Result.isOk }
     |> CmdData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1469,7 +1463,7 @@ type Binding private () =
       CanExec = fun _ _ -> true
       AutoRequery = false }
     |> CmdParamData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1496,7 +1490,7 @@ type Binding private () =
       CanExec = canExec
       AutoRequery = defaultArg uiBoundCmdParam false }
     |> CmdParamData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1521,7 +1515,7 @@ type Binding private () =
       CanExec = fun p m -> exec p m |> ValueOption.isSome
       AutoRequery = defaultArg uiBoundCmdParam false }
     |> CmdParamData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1546,7 +1540,7 @@ type Binding private () =
       CanExec = fun p m -> exec p m |> Option.isSome
       AutoRequery = defaultArg uiBoundCmdParam false }
     |> CmdParamData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1574,7 +1568,7 @@ type Binding private () =
       CanExec = fun p m -> exec p m |> Result.isOk
       AutoRequery = defaultArg uiBoundCmdParam false }
     |> CmdParamData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1603,7 +1597,7 @@ type Binding private () =
       Sticky = false }
     |> SubModelData.box
     |> SubModelData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1628,7 +1622,7 @@ type Binding private () =
       Sticky = false }
     |> SubModelData.box
     |> SubModelData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1648,7 +1642,7 @@ type Binding private () =
       Sticky = false }
     |> SubModelData.box
     |> SubModelData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1693,7 +1687,7 @@ type Binding private () =
       Sticky = defaultArg sticky false }
     |> SubModelData.box
     |> SubModelData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1739,7 +1733,7 @@ type Binding private () =
       Sticky = defaultArg sticky false }
     |> SubModelData.box
     |> SubModelData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1779,7 +1773,7 @@ type Binding private () =
       Sticky = defaultArg sticky false }
     |> SubModelData.box
     |> SubModelData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1821,7 +1815,7 @@ type Binding private () =
       Sticky = defaultArg sticky false }
     |> SubModelData.box
     |> SubModelData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1857,7 +1851,7 @@ type Binding private () =
       Sticky = defaultArg sticky false }
     |> SubModelData.box
     |> SubModelData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -1894,7 +1888,7 @@ type Binding private () =
       Sticky = defaultArg sticky false }
     |> SubModelData.box
     |> SubModelData
-    |> createBinding
+    |> Binding.create
 
   /// <summary>
   ///   Like <see cref="subModelOpt" />, but uses the <c>WindowState</c> wrapper
@@ -1957,7 +1951,7 @@ type Binding private () =
       OnCloseRequested = fun _ -> defaultArg (onCloseRequested |> Option.map ValueSome) ValueNone }
     |> SubModelWinData.box
     |> SubModelWinData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -2075,7 +2069,7 @@ type Binding private () =
       OnCloseRequested = fun _ -> defaultArg (onCloseRequested |> Option.map ValueSome) ValueNone }
     |> SubModelWinData.box
     |> SubModelWinData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -2179,7 +2173,7 @@ type Binding private () =
       OnCloseRequested = fun _ -> defaultArg (onCloseRequested |> Option.map ValueSome) ValueNone }
     |> SubModelWinData.box
     |> SubModelWinData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -2262,7 +2256,7 @@ type Binding private () =
       ToMsg = fun _ -> toMsg }
     |> SubModelSeqData.box
     |> SubModelSeqData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -2294,7 +2288,7 @@ type Binding private () =
       ToMsg = fun _ -> toMsg }
     |> SubModelSeqData.box
     |> SubModelSeqData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -2320,7 +2314,7 @@ type Binding private () =
       ToMsg = fun _ (_, msg) -> msg }
     |> SubModelSeqData.box
     |> SubModelSeqData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -2359,7 +2353,7 @@ type Binding private () =
       SubModelSeqBindingName = subModelSeqBindingName }
     |> SubModelSelectedItemData.box
     |> SubModelSelectedItemData
-    |> createBinding
+    |> Binding.create
 
 
   /// <summary>
@@ -2398,7 +2392,7 @@ type Binding private () =
       SubModelSeqBindingName = subModelSeqBindingName }
     |> SubModelSelectedItemData.box
     |> SubModelSelectedItemData
-    |> createBinding
+    |> Binding.create
 
 
 
@@ -2418,7 +2412,7 @@ module Extensions =
       TwoWayData {
         Get = get >> box
         Set = fun p _ -> p |> unbox<'a> |> set
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2435,7 +2429,7 @@ module Extensions =
       TwoWayData {
         Get = get >> Option.map box >> Option.toObj
         Set = fun p _ -> p |> Option.ofObj |> Option.map unbox<'a> |> set
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2452,7 +2446,7 @@ module Extensions =
       TwoWayData {
         Get = get >> ValueOption.map box >> ValueOption.toObj
         Set = fun p _ -> p |> ValueOption.ofObj |> ValueOption.map unbox<'a> |> set
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2473,7 +2467,7 @@ module Extensions =
         Get = get >> box
         Set = fun p _ -> p |> unbox<'a> |> set
         Validate = validate
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2494,7 +2488,7 @@ module Extensions =
         Get = get >> box
         Set = fun p  _ -> p |> unbox<'a> |> set
         Validate = validate >> ValueOption.ofOption
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2515,7 +2509,7 @@ module Extensions =
         Get = get >> box
         Set = fun p _ -> p |> unbox<'a> |> set
         Validate = validate >> ValueOption.ofError
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2538,7 +2532,7 @@ module Extensions =
         Get = get >> ValueOption.map box >> ValueOption.toObj
         Set = fun p _ -> p |> ValueOption.ofObj |> ValueOption.map unbox<'a> |> set
         Validate = validate
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2561,7 +2555,7 @@ module Extensions =
         Get = get >> ValueOption.map box >> ValueOption.toObj
         Set = fun p _ -> p |> ValueOption.ofObj |> ValueOption.map unbox<'a> |> set
         Validate = validate >> ValueOption.ofOption
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2584,7 +2578,7 @@ module Extensions =
         Get = get >> ValueOption.map box >> ValueOption.toObj
         Set = fun p _ -> p |> ValueOption.ofObj |> ValueOption.map unbox<'a> |> set
         Validate = validate >> ValueOption.ofError
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2607,7 +2601,7 @@ module Extensions =
         Get = get >> Option.map box >> Option.toObj
         Set = fun p _ -> p |> Option.ofObj |> Option.map unbox<'a> |> set
         Validate = validate
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2630,7 +2624,7 @@ module Extensions =
         Get = get >> Option.map box >> Option.toObj
         Set = fun p _ -> p |> Option.ofObj |> Option.map unbox<'a> |> set
         Validate = validate >> ValueOption.ofOption
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2653,7 +2647,7 @@ module Extensions =
         Get = get >> Option.map box >> Option.toObj
         Set = fun p _ -> p |> Option.ofObj |> Option.map unbox<'a> |> set
         Validate = validate >> ValueOption.ofError
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2667,7 +2661,7 @@ module Extensions =
       CmdData {
         Exec = fun _ -> exec |> ValueSome
         CanExec = fun _ -> true
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2683,7 +2677,7 @@ module Extensions =
       CmdData {
         Exec = fun _ -> exec |> ValueSome
         CanExec = canExec
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2699,7 +2693,7 @@ module Extensions =
         Exec = fun p _ -> exec p |> ValueSome
         CanExec = fun _ _ -> true
         AutoRequery = false
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2724,7 +2718,7 @@ module Extensions =
         Exec = fun p _ -> exec p
         CanExec = fun p _ -> exec p |> ValueOption.isSome
         AutoRequery = defaultArg uiBoundCmdParam false
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2749,7 +2743,7 @@ module Extensions =
         Exec = fun p _ -> exec p |> ValueOption.ofOption
         CanExec = fun p _ -> exec p |> Option.isSome
         AutoRequery = defaultArg uiBoundCmdParam false
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2777,7 +2771,7 @@ module Extensions =
         Exec = fun p _ -> exec p |> ValueOption.ofOk
         CanExec = fun p _ -> exec p |> Result.isOk
         AutoRequery = defaultArg uiBoundCmdParam false
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2804,7 +2798,7 @@ module Extensions =
         Exec = fun p _ -> exec p |> ValueSome
         CanExec = fun p _ -> canExec p
         AutoRequery = defaultArg uiBoundCmdParam false
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2843,7 +2837,7 @@ module Extensions =
         Get = get >> ValueOption.map box
         Set = fun id _ -> id |> ValueOption.map unbox<'id> |> set
         SubModelSeqBindingName = subModelSeqBindingName
-      } |> createBinding
+      } |> Binding.create
 
 
     /// <summary>
@@ -2882,4 +2876,4 @@ module Extensions =
         Get = get >> ValueOption.ofOption >> ValueOption.map box
         Set = fun id _ -> id |> ValueOption.map unbox<'id> |> ValueOption.toOption |> set
         SubModelSeqBindingName = subModelSeqBindingName
-      } |> createBinding
+      } |> Binding.create

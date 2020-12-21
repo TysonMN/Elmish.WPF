@@ -104,7 +104,7 @@ module Helpers =
       (get: 'model -> 'a) =
     ({ Get = get >> box }
      |> OneWayData
-     |> createBinding) name
+     |> Binding.create) name
 
 
   let internal oneWayLazy
@@ -117,7 +117,7 @@ module Helpers =
        Equals = equals }
      |> OneWayLazyData.box
      |> OneWayLazyData
-     |> createBinding) name
+     |> Binding.create) name
 
 
   let internal oneWaySeqLazy
@@ -134,7 +134,7 @@ module Helpers =
        ItemEquals = itemEquals }
      |> OneWaySeqLazyData.box
      |> OneWaySeqLazyData
-     |> createBinding) name
+     |> Binding.create) name
 
 
   let internal twoWay
@@ -145,7 +145,7 @@ module Helpers =
        Set = set }
      |> TwoWayData.box
      |> TwoWayData
-     |> createBinding) name
+     |> Binding.create) name
 
 
   let internal twoWayValidate
@@ -158,7 +158,7 @@ module Helpers =
        Validate = validate }
      |> TwoWayValidateData.box
      |> TwoWayValidateData
-     |> createBinding) name
+     |> Binding.create) name
 
 
   let internal cmd
@@ -168,7 +168,7 @@ module Helpers =
     ({ Exec = exec
        CanExec = canExec }
      |> CmdData
-     |> createBinding) name
+     |> Binding.create) name
 
 
   let internal cmdParam
@@ -180,7 +180,7 @@ module Helpers =
        CanExec = unbox >> canExec
        AutoRequery = autoRequery }
      |> CmdParamData
-     |> createBinding) name
+     |> Binding.create) name
 
 
   let internal subModel
@@ -195,7 +195,7 @@ module Helpers =
        Sticky = sticky }
      |> SubModelData.box
      |> SubModelData
-     |> createBinding) name
+     |> Binding.create) name
 
 
   let internal subModelSeq
@@ -210,7 +210,7 @@ module Helpers =
        ToMsg = fun _ -> toMsg }
      |> SubModelSeqData.box
      |> SubModelSeqData
-     |> createBinding) name
+     |> Binding.create) name
 
 
   let internal subModelSelectedItem
@@ -223,7 +223,7 @@ module Helpers =
        SubModelSeqBindingName = subModelSeqBindingName }
      |> SubModelSelectedItemData.box
      |> SubModelSelectedItemData
-     |> createBinding) name
+     |> Binding.create) name
 
 
 
