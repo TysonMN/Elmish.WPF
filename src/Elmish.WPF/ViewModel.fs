@@ -64,6 +64,11 @@ and internal CachedBinding<'model, 'msg, 'value> = {
   Cache: 'value option ref
 }
 
+and internal LazyUpdateBinding<'model, 'msg> = {
+  LazyUpdateData: LazyUpdateData<'model, 'msg>
+  Binding: VmBinding<'model, 'msg>
+}
+
 
 /// Represents all necessary data used in an active binding.
 and internal VmBinding<'model, 'msg> =
@@ -79,6 +84,7 @@ and internal VmBinding<'model, 'msg> =
   | SubModelSeq of SubModelSeqBinding<'model, 'msg, obj, obj, obj>
   | SubModelSelectedItem of SubModelSelectedItemBinding<'model, 'msg, obj, obj, obj>
   | Cached of CachedBinding<'model, 'msg, obj>
+  | LazyUpdate of LazyUpdateBinding<'model, 'msg>
 
 
 and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
@@ -117,36 +123,43 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
   let raiseCanExecuteChanged (cmd: Command) =
     cmd.RaiseCanExecuteChanged ()
 
-  let setError error propName =
-    match errors.TryGetValue propName with
-    | true, err when err = error -> ()
-    | _ ->
+
+  let updateValidationError previousModel currentModel propName =
+    let setError error =
+      match errors.TryGetValue propName with
+      | true, err when err = error -> ()
+      | _ ->
+          log.LogTrace("[{BindingNameChain}] ErrorsChanged \"{BindingName}\"", propNameChain, propName)
+          errors.[propName] <- error
+          errorsChanged.Trigger([| box this; box <| DataErrorsChangedEventArgs propName |])
+    
+    let removeError () =
+      if errors.Remove propName then
         log.LogTrace("[{BindingNameChain}] ErrorsChanged \"{BindingName}\"", propNameChain, propName)
-        errors.[propName] <- error
         errorsChanged.Trigger([| box this; box <| DataErrorsChangedEventArgs propName |])
 
-  let removeError propName =
-    if errors.Remove propName then
-      log.LogTrace("[{BindingNameChain}] ErrorsChanged \"{BindingName}\"", propNameChain, propName)
-      errorsChanged.Trigger([| box this; box <| DataErrorsChangedEventArgs propName |])
-
-  let rec updateValidationError = function
-    | TwoWayValidate { TwoWayValidateData = d } ->
-        fun model ->
-          match d.Validate model with
-          | ValueNone -> removeError
+    let rec recUpdateValidationError = function
+      | TwoWayValidate { TwoWayValidateData = d } ->
+          match d.Validate currentModel with
+          | ValueNone -> removeError ()
           | ValueSome error -> setError error
-    | OneWay _
-    | OneWayLazy _
-    | OneWaySeq _
-    | TwoWay _
-    | Cmd _
-    | CmdParam _
-    | SubModel _
-    | SubModelWin _
-    | SubModelSeq _
-    | SubModelSelectedItem _ -> ignore2
-    | Cached b -> updateValidationError b.Binding
+      | OneWay _
+      | OneWayLazy _
+      | OneWaySeq _
+      | TwoWay _
+      | Cmd _
+      | CmdParam _
+      | SubModel _
+      | SubModelWin _
+      | SubModelSeq _
+      | SubModelSelectedItem _ -> ()
+      | Cached b -> recUpdateValidationError b.Binding
+      | LazyUpdate b ->
+          match previousModel with
+          | Some pm when b.LazyUpdateData.Predicate pm currentModel |> not -> recUpdateValidationError b.Binding
+          | _ -> ()
+    recUpdateValidationError
+
 
   let measure name callName f =
     if not <| logPerformance.IsEnabled(LogLevel.Trace) then f
@@ -194,109 +207,117 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
   let initializeBinding name bindingData getInitializedBindingByName =
     let measure x = x |> measure name
     let measure2 x = x |> measure2 name
-    match bindingData with
-    | OneWayData d ->
-        { OneWayData = d |> OneWayData.measureFunctions measure }
-        |> OneWay
-        |> Some 
-    | OneWayLazyData d ->
-        { OneWayLazyData = d |> OneWayLazyData.measureFunctions measure measure measure2 }
-        |> OneWayLazy
-        |> withCaching
-        |> Some
-    | OneWaySeqLazyData d ->
-        { OneWaySeqData = d |> OneWaySeqLazyData.measureFunctions measure measure measure2 measure measure2
-          Values = ObservableCollection(initialModel |> d.Get |> d.Map) }
-        |> OneWaySeq
-        |> Some
-    | TwoWayData d ->
-        { TwoWayData = d |> TwoWayData.measureFunctions measure measure }
-        |> TwoWay
-        |> Some
-    | TwoWayValidateData d ->
-        { TwoWayValidateData = d |> TwoWayValidateData.measureFunctions measure measure measure }
-        |> TwoWayValidate
-        |> Some
-    | CmdData d ->
-        let d = d |> CmdData.measureFunctions measure measure
-        let execute _ = d.Exec currentModel |> ValueOption.iter dispatch
-        let canExecute _ = d.CanExec currentModel
-        Some <| Cmd {
-          Cmd = Command(execute, canExecute, false)
-          CanExec = d.CanExec }
-    | CmdParamData d ->
-        let d = d |> CmdParamData.measureFunctions measure2 measure2
-        let execute param = d.Exec param currentModel |> ValueOption.iter dispatch
-        let canExecute param = d.CanExec param currentModel
-        Some <| CmdParam (Command(execute, canExecute, d.AutoRequery))
-    | SubModelData d ->
-        let d = d |> SubModelData.measureFunctions measure measure measure2
-        let toMsg = fun msg -> d.ToMsg currentModel msg
-        d.GetModel initialModel
-        |> ValueOption.map (fun m -> ViewModel(m, toMsg >> dispatch, d.GetBindings (), performanceLogThresholdMs, getPropChainFor name, log, logPerformance))
-        |> (fun vm -> { SubModelData = d; Vm = ref vm })
-        |> SubModel
-        |> Some
-    | SubModelWinData d ->
-        let d = d |> SubModelWinData.measureFunctions measure measure measure2
-        let toMsg = fun msg -> d.ToMsg currentModel msg
-        let onCloseRequested = fun m -> m |> d.OnCloseRequested |> ValueOption.iter dispatch
-        match d.GetState initialModel with
-        | WindowState.Closed ->
-            { SubModelWinData = d
-              WinRef = WeakReference<_>(null)
-              PreventClose = ref true
-              VmWinState = ref WindowState.Closed }
-        | WindowState.Hidden m ->
-            let chain = getPropChainFor name
-            let vm = ViewModel(m, toMsg >> dispatch, d.GetBindings (), performanceLogThresholdMs, chain, log, logPerformance)
-            let winRef = WeakReference<_>(null)
-            let preventClose = ref true
-            log.LogTrace("[{BindingNameChain}] Creating hidden window", chain)
-            showNewWindow winRef d.GetWindow vm d.IsModal onCloseRequested preventClose Visibility.Hidden
-            { SubModelWinData = d
-              WinRef = winRef
-              PreventClose = preventClose
-              VmWinState = ref <| WindowState.Hidden vm }
-        | WindowState.Visible m ->
-            let chain = getPropChainFor name
-            let vm = ViewModel(m, toMsg >> dispatch, d.GetBindings (), performanceLogThresholdMs, chain, log, logPerformance)
-            let winRef = WeakReference<_>(null)
-            let preventClose = ref true
-            log.LogTrace("[{BindingNameChain}] Creating and opening window", chain) // TODO: consider changing to "Creating visible window"
-            showNewWindow winRef d.GetWindow vm d.IsModal onCloseRequested preventClose Visibility.Visible
-            { SubModelWinData = d
-              WinRef = winRef
-              PreventClose = preventClose
-              VmWinState = ref <| WindowState.Visible vm }
-        |> SubModelWin
-        |> Some
-    | SubModelSeqData d ->
-        let d = d |> SubModelSeqData.measureFunctions measure measure measure measure2
-        let toMsg = fun msg -> d.ToMsg currentModel msg
-        let vms =
-          d.GetModels initialModel
-          |> Seq.map (fun m ->
-               let chain = getPropChainForItem name (d.GetId m |> string)
-               ViewModel(m, (fun msg -> toMsg (d.GetId m, msg) |> dispatch), d.GetBindings (), performanceLogThresholdMs, chain, log, logPerformance)
-          )
-          |> ObservableCollection
-        { SubModelSeqData = d
-          Vms = vms }
-        |> SubModelSeq
-        |> Some
-    | SubModelSelectedItemData d ->
-        let d = d |> SubModelSelectedItemData.measureFunctions measure measure2
-        match getInitializedBindingByName d.SubModelSeqBindingName with
-        | Some (SubModelSeq b) ->
-          { SubModelSelectedItemData = d
-            SubModelSeqBinding = b }
-          |> SubModelSelectedItem
+    let rec recInitializeBinding = function
+      | OneWayData d ->
+          { OneWayData = d |> OneWayData.measureFunctions measure }
+          |> OneWay
+          |> Some 
+      | OneWayLazyData d ->
+          { OneWayLazyData = d |> OneWayLazyData.measureFunctions measure measure measure2 }
+          |> OneWayLazy
           |> withCaching
           |> Some
-        | _ -> // TODO: Create separate caes for (1) no binding of that name and (2) binding of that name but the wrong type
-          log.LogError("subModelSelectedItem binding referenced binding '{SubModelSeqBindingName}', but no compatible binding was found with that name", d.SubModelSeqBindingName)
-          None
+      | OneWaySeqLazyData d ->
+          { OneWaySeqData = d |> OneWaySeqLazyData.measureFunctions measure measure measure2 measure measure2
+            Values = ObservableCollection(initialModel |> d.Get |> d.Map) }
+          |> OneWaySeq
+          |> Some
+      | TwoWayData d ->
+          { TwoWayData = d |> TwoWayData.measureFunctions measure measure }
+          |> TwoWay
+          |> Some
+      | TwoWayValidateData d ->
+          { TwoWayValidateData = d |> TwoWayValidateData.measureFunctions measure measure measure }
+          |> TwoWayValidate
+          |> Some
+      | CmdData d ->
+          let d = d |> CmdData.measureFunctions measure measure
+          let execute _ = d.Exec currentModel |> ValueOption.iter dispatch
+          let canExecute _ = d.CanExec currentModel
+          Some <| Cmd {
+            Cmd = Command(execute, canExecute, false)
+            CanExec = d.CanExec }
+      | CmdParamData d ->
+          let d = d |> CmdParamData.measureFunctions measure2 measure2
+          let execute param = d.Exec param currentModel |> ValueOption.iter dispatch
+          let canExecute param = d.CanExec param currentModel
+          Some <| CmdParam (Command(execute, canExecute, d.AutoRequery))
+      | SubModelData d ->
+          let d = d |> SubModelData.measureFunctions measure measure measure2
+          let toMsg = fun msg -> d.ToMsg currentModel msg
+          d.GetModel initialModel
+          |> ValueOption.map (fun m -> ViewModel(m, toMsg >> dispatch, d.GetBindings (), performanceLogThresholdMs, getPropChainFor name, log, logPerformance))
+          |> (fun vm -> { SubModelData = d; Vm = ref vm })
+          |> SubModel
+          |> Some
+      | SubModelWinData d ->
+          let d = d |> SubModelWinData.measureFunctions measure measure measure2
+          let toMsg = fun msg -> d.ToMsg currentModel msg
+          let onCloseRequested = fun m -> m |> d.OnCloseRequested |> ValueOption.iter dispatch
+          match d.GetState initialModel with
+          | WindowState.Closed ->
+              { SubModelWinData = d
+                WinRef = WeakReference<_>(null)
+                PreventClose = ref true
+                VmWinState = ref WindowState.Closed }
+          | WindowState.Hidden m ->
+              let chain = getPropChainFor name
+              let vm = ViewModel(m, toMsg >> dispatch, d.GetBindings (), performanceLogThresholdMs, chain, log, logPerformance)
+              let winRef = WeakReference<_>(null)
+              let preventClose = ref true
+              log.LogTrace("[{BindingNameChain}] Creating hidden window", chain)
+              showNewWindow winRef d.GetWindow vm d.IsModal onCloseRequested preventClose Visibility.Hidden
+              { SubModelWinData = d
+                WinRef = winRef
+                PreventClose = preventClose
+                VmWinState = ref <| WindowState.Hidden vm }
+          | WindowState.Visible m ->
+              let chain = getPropChainFor name
+              let vm = ViewModel(m, toMsg >> dispatch, d.GetBindings (), performanceLogThresholdMs, chain, log, logPerformance)
+              let winRef = WeakReference<_>(null)
+              let preventClose = ref true
+              log.LogTrace("[{BindingNameChain}] Creating and opening window", chain) // TODO: consider changing to "Creating visible window"
+              showNewWindow winRef d.GetWindow vm d.IsModal onCloseRequested preventClose Visibility.Visible
+              { SubModelWinData = d
+                WinRef = winRef
+                PreventClose = preventClose
+                VmWinState = ref <| WindowState.Visible vm }
+          |> SubModelWin
+          |> Some
+      | SubModelSeqData d ->
+          let d = d |> SubModelSeqData.measureFunctions measure measure measure measure2
+          let toMsg = fun msg -> d.ToMsg currentModel msg
+          let vms =
+            d.GetModels initialModel
+            |> Seq.map (fun m ->
+                 let chain = getPropChainForItem name (d.GetId m |> string)
+                 ViewModel(m, (fun msg -> toMsg (d.GetId m, msg) |> dispatch), d.GetBindings (), performanceLogThresholdMs, chain, log, logPerformance)
+            )
+            |> ObservableCollection
+          { SubModelSeqData = d
+            Vms = vms }
+          |> SubModelSeq
+          |> Some
+      | SubModelSelectedItemData d ->
+          let d = d |> SubModelSelectedItemData.measureFunctions measure measure2
+          match getInitializedBindingByName d.SubModelSeqBindingName with
+          | Some (SubModelSeq b) ->
+            { SubModelSelectedItemData = d
+              SubModelSeqBinding = b }
+            |> SubModelSelectedItem
+            |> withCaching
+            |> Some
+          | _ -> // TODO: Create separate caes for (1) no binding of that name and (2) binding of that name but the wrong type
+            log.LogError("subModelSelectedItem binding referenced binding '{SubModelSeqBindingName}', but no compatible binding was found with that name", d.SubModelSeqBindingName)
+            None
+      | LazyUpdateData d ->
+          let d = d |> LazyUpdateData.measureFunctions measure
+          recInitializeBinding d.BindingData
+          |> Option.map (fun b ->
+            { LazyUpdateData = d
+              Binding = b }
+            |> LazyUpdate)
+    recInitializeBinding bindingData
 
   let bindings =
     log.LogTrace("[{BindingNameChain}] Initializing bindings", propNameChain)
@@ -313,7 +334,7 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
         initializeBinding b.Name b.Data dictAsFunc
         |> Option.iter (fun binding ->
           dict.Add(b.Name, binding)
-          updateValidationError binding initialModel b.Name)
+          updateValidationError None initialModel b.Name binding)
     dict :> IReadOnlyDictionary<string, VmBinding<'model, 'msg>>
 
   /// Updates the binding value (for relevant bindings) and returns a value
@@ -436,6 +457,10 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
         if valueChanged then
           b.Cache := None
         valueChanged
+    | LazyUpdate b ->
+        if b.LazyUpdateData.Predicate currentModel newModel
+        then false
+        else updateValue bindingName newModel b.Binding
 
   /// Returns the command associated with a command binding if the command's
   /// CanExecuteChanged should be triggered.
@@ -457,76 +482,94 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
     | CmdParam cmd ->
         Some cmd
     | Cached b -> getCmdIfCanExecChanged newModel b.Binding
+    | LazyUpdate b ->
+        if b.LazyUpdateData.Predicate currentModel newModel
+        then None
+        else getCmdIfCanExecChanged newModel b.Binding
 
-  let rec tryGetMember model = function
-    | OneWay { OneWayData = d } -> d.TryGetMember model
-    | TwoWay { TwoWayData = d } -> d.TryGetMember model
-    | TwoWayValidate { TwoWayValidateData = d } -> d.TryGetMember model
-    | OneWayLazy { OneWayLazyData = d } -> d.TryGetMember model
-    | OneWaySeq { Values = vals } -> box vals
-    | Cmd { Cmd = cmd }
-    | CmdParam cmd ->
-        box cmd
-    | SubModel { Vm = vm } -> !vm |> ValueOption.toObj |> box
-    | SubModelWin { VmWinState = vm } ->
-        !vm
-        |> WindowState.toVOption
-        |> ValueOption.map box
-        |> ValueOption.toObj
-    | SubModelSeq { Vms = vms } -> box vms
-    | SubModelSelectedItem b ->
-        let selected =
-          b.SubModelSelectedItemData.TryGetMember
-            ((fun (vm: ViewModel<_, _>) -> vm.CurrentModel),
-             b.SubModelSeqBinding.SubModelSeqData,
-             b.SubModelSeqBinding.Vms,
-             model)
-        log.LogTrace(
-          "[{BindingNameChain}] Setting selected VM to {SubModelId}",
-          propNameChain,
-          (selected |> Option.map (fun vm -> b.SubModelSeqBinding.SubModelSeqData.GetId vm.CurrentModel))
-        )
-        selected |> Option.toObj |> box
-    | Cached b ->
-        match !b.Cache with
-        | Some v -> v
-        | None ->
-            let v = tryGetMember model b.Binding
-            b.Cache := Some v
-            v
+  let tryGetMember model =
+    let rec recTryGetMember = function
+      | OneWay { OneWayData = d } -> d.TryGetMember model
+      | TwoWay { TwoWayData = d } -> d.TryGetMember model
+      | TwoWayValidate { TwoWayValidateData = d } -> d.TryGetMember model
+      | OneWayLazy { OneWayLazyData = d } -> d.TryGetMember model
+      | OneWaySeq { Values = vals } -> box vals
+      | Cmd { Cmd = cmd }
+      | CmdParam cmd ->
+          box cmd
+      | SubModel { Vm = vm } -> !vm |> ValueOption.toObj |> box
+      | SubModelWin { VmWinState = vm } ->
+          !vm
+          |> WindowState.toVOption
+          |> ValueOption.map box
+          |> ValueOption.toObj
+      | SubModelSeq { Vms = vms } -> box vms
+      | SubModelSelectedItem b ->
+          let selected =
+            b.SubModelSelectedItemData.TryGetMember
+              ((fun (vm: ViewModel<_, _>) -> vm.CurrentModel),
+               b.SubModelSeqBinding.SubModelSeqData,
+               b.SubModelSeqBinding.Vms,
+               model)
+          log.LogTrace(
+            "[{BindingNameChain}] Setting selected VM to {SubModelId}",
+            propNameChain,
+            (selected |> Option.map (fun vm -> b.SubModelSeqBinding.SubModelSeqData.GetId vm.CurrentModel))
+          )
+          selected |> Option.toObj |> box
+      | Cached b ->
+          match !b.Cache with
+          | Some v -> v
+          | None ->
+              let v = recTryGetMember b.Binding
+              b.Cache := Some v
+              v
+      | LazyUpdate b -> recTryGetMember b.Binding
+    recTryGetMember
 
-  let rec trySetMember model (value: obj) = function // TOOD: return 'msg option
-    | TwoWay { TwoWayData = d } ->
-        d.TrySetMember(value, model) |> dispatch
-        true
-    | TwoWayValidate { TwoWayValidateData = d } ->
-        d.TrySetMember(value, model) |> dispatch
-        true
-    | SubModelSelectedItem b ->
-        let bindingModel =
-          (value :?> ViewModel<obj, obj>)
-          |> ValueOption.ofObj
-          |> ValueOption.map (fun vm -> vm.CurrentModel)
-        b.SubModelSelectedItemData.TrySetMember(b.SubModelSeqBinding.SubModelSeqData, model, bindingModel) |> dispatch
-        true
-    | Cached b ->
-        let successful = trySetMember model value b.Binding
-        if successful then
-          b.Cache := None  // TODO #185: write test
-        successful
-    | OneWay _
-    | OneWayLazy _
-    | OneWaySeq _
-    | Cmd _
-    | CmdParam _
-    | SubModel _
-    | SubModelWin _
-    | SubModelSeq _ ->
-        false
+  let trySetMember model (value: obj) = // TOOD: return 'msg option
+    let rec recTrySetMember = function
+      | TwoWay { TwoWayData = d } ->
+          d.TrySetMember(value, model) |> dispatch
+          true
+      | TwoWayValidate { TwoWayValidateData = d } ->
+          d.TrySetMember(value, model) |> dispatch
+          true
+      | SubModelSelectedItem b ->
+          let bindingModel =
+            (value :?> ViewModel<obj, obj>)
+            |> ValueOption.ofObj
+            |> ValueOption.map (fun vm -> vm.CurrentModel)
+          b.SubModelSelectedItemData.TrySetMember(b.SubModelSeqBinding.SubModelSeqData, model, bindingModel) |> dispatch
+          true
+      | Cached b ->
+          let successful = recTrySetMember b.Binding
+          if successful then
+            b.Cache := None  // TODO #185: write test
+          successful
+      | LazyUpdate b -> recTrySetMember b.Binding
+      | OneWay _
+      | OneWayLazy _
+      | OneWaySeq _
+      | Cmd _
+      | CmdParam _
+      | SubModel _
+      | SubModelWin _
+      | SubModelSeq _ ->
+          false
+    recTrySetMember
 
   member __.CurrentModel : 'model = currentModel
 
   member __.UpdateModel (newModel: 'model) : unit =
+    (*
+     * Instead of iterating over the binding three times
+     * to update properties, commands, and validation errors,
+     * consder interating over the bindings once and updating
+     * those three things for each binding.
+     * Then the LazyUpdate predicate can be executed once
+     * for each call to UpdateModel.
+     *)
     let propsToNotify =
       bindings
       |> Seq.filter (fun (Kvp (name, binding)) -> updateValue name newModel binding)
@@ -536,11 +579,12 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
       bindings
       |> Seq.choose (Kvp.value >> getCmdIfCanExecChanged newModel)
       |> Seq.toList
+    let previousModel = Some currentModel
     currentModel <- newModel
     propsToNotify |> List.iter notifyPropertyChanged
     cmdsToNotify |> List.iter raiseCanExecuteChanged
     for Kvp (name, binding) in bindings do
-      updateValidationError binding currentModel name
+      updateValidationError previousModel currentModel name binding
 
   override __.TryGetMember (binder, result) =
     log.LogTrace("[{BindingNameChain}] TryGetMember {BindingName}", propNameChain, binder.Name)
