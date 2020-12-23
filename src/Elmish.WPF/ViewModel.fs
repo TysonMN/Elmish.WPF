@@ -120,6 +120,10 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
     log.LogTrace("[{BindingNameChain}] PropertyChanged \"{BindingName}\"", propNameChain, propName)
     propertyChanged.Trigger(this, PropertyChangedEventArgs propName)
 
+  let raiseErrorsChanged propName =
+    log.LogTrace("[{BindingNameChain}] ErrorsChanged \"{BindingName}\"", propNameChain, propName)
+    errorsChanged.Trigger([| box this; box <| DataErrorsChangedEventArgs propName |])
+
 
   let updateValidationError previousModel currentModel propName =
     let setError error =
@@ -127,13 +131,11 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
       | true, err when err = error -> ()
       | _ ->
           errors.[propName] <- error
-          log.LogTrace("[{BindingNameChain}] ErrorsChanged \"{BindingName}\"", propNameChain, propName)
-          errorsChanged.Trigger([| box this; box <| DataErrorsChangedEventArgs propName |])
+          raiseErrorsChanged propName
     
     let removeError () =
       if errors.Remove propName then
-        log.LogTrace("[{BindingNameChain}] ErrorsChanged \"{BindingName}\"", propNameChain, propName)
-        errorsChanged.Trigger([| box this; box <| DataErrorsChangedEventArgs propName |])
+        raiseErrorsChanged propName
 
     let rec recUpdateValidationError = function
       | TwoWayValidate { TwoWayValidateData = d } ->
