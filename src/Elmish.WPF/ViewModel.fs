@@ -617,8 +617,7 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
   interface INotifyDataErrorInfo with
     [<CLIEvent>]
     member __.ErrorsChanged = errorsChanged.Publish
-    member __.HasErrors =
-      errors.Count > 0
+    member __.HasErrors = errors.Count > 0
     member __.GetErrors propName =
       log.LogTrace("[{BindingNameChain}] GetErrors {BindingName}", propNameChain, (propName |> Option.ofObj |> Option.defaultValue "<null>"))
       match errors.TryGetValue propName with
