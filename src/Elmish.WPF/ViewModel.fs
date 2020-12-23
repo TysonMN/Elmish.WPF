@@ -109,12 +109,8 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
 
   let withCaching b = Cached { Binding = b; Cache = ref None }
 
-
-  let getPropChainFor bindingName =
-    sprintf "%s.%s" propNameChain bindingName
-
-  let getPropChainForItem collectionBindingName itemId =
-    sprintf "%s.%s.%s" propNameChain collectionBindingName itemId
+  let getPropChainFor bindingName = sprintf "%s.%s" propNameChain bindingName
+  let getPropChainForItem collectionBindingName itemId = sprintf "%s.%s.%s" propNameChain collectionBindingName itemId
 
   let raisePropertyChanged propName =
     log.LogTrace("[{BindingNameChain}] PropertyChanged \"{BindingName}\"", propNameChain, propName)
@@ -607,9 +603,7 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
         success
 
   // to help with debugging
-  override __.ToString () =
-    sprintf "%A" currentModel
-
+  override __.ToString () = sprintf "%A" currentModel
 
   interface INotifyPropertyChanged with
     [<CLIEvent>]
