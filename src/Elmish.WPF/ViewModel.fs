@@ -116,7 +116,7 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
   let getPropChainForItem collectionBindingName itemId =
     sprintf "%s.%s.%s" propNameChain collectionBindingName itemId
 
-  let notifyPropertyChanged propName =
+  let raisePropertyChanged propName =
     log.LogTrace("[{BindingNameChain}] PropertyChanged \"{BindingName}\"", propNameChain, propName)
     propertyChanged.Trigger(this, PropertyChangedEventArgs propName)
 
@@ -578,7 +578,7 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
       |> Seq.toList
     let previousModel = Some currentModel
     currentModel <- newModel
-    propsToNotify |> List.iter notifyPropertyChanged
+    propsToNotify |> List.iter raisePropertyChanged
     cmdsToNotify |> List.iter Command.raiseCanExecuteChanged
     for Kvp (name, binding) in bindings do
       updateValidationError previousModel currentModel name binding
