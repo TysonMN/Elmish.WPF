@@ -123,24 +123,23 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
   let raiseErrorsChanged propName =
     log.LogTrace("[{BindingNameChain}] ErrorsChanged \"{BindingName}\"", propNameChain, propName)
     errorsChanged.Trigger([| box this; box <| DataErrorsChangedEventArgs propName |])
-
-
-  let updateValidationError previousModel currentModel propName =
-    let setError error =
-      match errors.TryGetValue propName with
-      | true, err when err = error -> ()
-      | _ ->
-          errors.[propName] <- error
-          raiseErrorsChanged propName
     
-    let removeError () =
-      if errors.Remove propName then
+  let setError error propName =
+    match errors.TryGetValue propName with
+    | true, err when err = error -> ()
+    | _ ->
+        errors.[propName] <- error
         raiseErrorsChanged propName
+  
+  let removeError propName =
+    if errors.Remove propName then
+      raiseErrorsChanged propName
 
+  let updateValidationError previousModel currentModel =
     let rec recUpdateValidationError = function
       | TwoWayValidate { TwoWayValidateData = d } ->
           match d.Validate currentModel with
-          | ValueNone -> removeError ()
+          | ValueNone -> removeError
           | ValueSome error -> setError error
       | OneWay _
       | OneWayLazy _
@@ -151,12 +150,12 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
       | SubModel _
       | SubModelWin _
       | SubModelSeq _
-      | SubModelSelectedItem _ -> ()
+      | SubModelSelectedItem _ -> ignore
       | Cached b -> recUpdateValidationError b.Binding
       | LazyUpdate b ->
           match previousModel with
           | Some pm when b.LazyUpdateData.Predicate pm currentModel |> not -> recUpdateValidationError b.Binding
-          | _ -> ()
+          | _ -> ignore
     recUpdateValidationError
 
 
@@ -333,7 +332,7 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
         initializeBinding b.Name b.Data dictAsFunc
         |> Option.iter (fun binding ->
           dict.Add(b.Name, binding)
-          updateValidationError None initialModel b.Name binding)
+          updateValidationError None initialModel binding b.Name)
     dict :> IReadOnlyDictionary<string, VmBinding<'model, 'msg>>
 
   /// Updates the binding value (for relevant bindings) and returns a value
@@ -583,7 +582,7 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
     propsToNotify |> List.iter raisePropertyChanged
     cmdsToNotify |> List.iter Command.raiseCanExecuteChanged
     for Kvp (name, binding) in bindings do
-      updateValidationError previousModel currentModel name binding
+      updateValidationError previousModel currentModel binding name
 
   override __.TryGetMember (binder, result) =
     log.LogTrace("[{BindingNameChain}] TryGetMember {BindingName}", propNameChain, binder.Name)
