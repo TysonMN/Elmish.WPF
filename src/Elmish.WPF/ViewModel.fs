@@ -126,8 +126,8 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
       match errors.TryGetValue propName with
       | true, err when err = error -> ()
       | _ ->
-          log.LogTrace("[{BindingNameChain}] ErrorsChanged \"{BindingName}\"", propNameChain, propName)
           errors.[propName] <- error
+          log.LogTrace("[{BindingNameChain}] ErrorsChanged \"{BindingName}\"", propNameChain, propName)
           errorsChanged.Trigger([| box this; box <| DataErrorsChangedEventArgs propName |])
     
     let removeError () =
