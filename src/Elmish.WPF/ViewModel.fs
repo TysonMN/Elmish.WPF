@@ -120,9 +120,6 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
     log.LogTrace("[{BindingNameChain}] PropertyChanged \"{BindingName}\"", propNameChain, propName)
     propertyChanged.Trigger(this, PropertyChangedEventArgs propName)
 
-  let raiseCanExecuteChanged (cmd: Command) =
-    cmd.RaiseCanExecuteChanged ()
-
 
   let updateValidationError previousModel currentModel propName =
     let setError error =
@@ -582,7 +579,7 @@ and [<AllowNullLiteral>] internal ViewModel<'model, 'msg>
     let previousModel = Some currentModel
     currentModel <- newModel
     propsToNotify |> List.iter notifyPropertyChanged
-    cmdsToNotify |> List.iter raiseCanExecuteChanged
+    cmdsToNotify |> List.iter Command.raiseCanExecuteChanged
     for Kvp (name, binding) in bindings do
       updateValidationError previousModel currentModel name binding
 

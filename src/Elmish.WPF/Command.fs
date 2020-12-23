@@ -27,3 +27,10 @@ type Command(execute, canExecute, autoRequery) as this =
     member x.CanExecuteChanged = canExecuteChanged.Publish
     member x.CanExecute p = canExecute p
     member x.Execute p = execute p
+
+
+[<RequireQualifiedAccess>]
+module Command =
+
+  let raiseCanExecuteChanged (cmd: Command) =
+    cmd.RaiseCanExecuteChanged ()
