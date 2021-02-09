@@ -1,4 +1,6 @@
-﻿module Elmish.WPF.Samples.SingleCounter.Program
+module Elmish.WPF.Samples.SingleCounter.Program
+
+open System.Windows.Input
 
 open Elmish
 open Elmish.WPF
@@ -34,6 +36,10 @@ let bindings () : Binding<Model, Msg> list = [
     (fun m -> float m.StepSize),
     int >> SetStepSize)
   "Reset" |> Binding.cmdIf(Reset, canReset)
+  "KeyDown" |> Binding.cmdParamIf(fun obj ->
+    let ev = obj :?> KeyEventArgs
+    let b = ev.Key = Key.D && ev.KeyboardDevice.Modifiers.HasFlag(ModifierKeys.Control)
+    if b then Some Increment else None)
 ]
 
 let designVm = ViewModel.designInstance init (bindings ())
